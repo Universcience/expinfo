@@ -1,0 +1,470 @@
+<!doctype html>
+<!--
+langton.html - An HTML5/JS article about Langton's Ant, with implementation.
+Copyright (c) 2020 - Jérôme Kirman
+
+This program is free software: you can redistribute it and/or modify it
+under the terms of the GNU Affero General Public License as published
+by the Free Software Foundation, either version 3 of the License,
+or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+-->
+
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<style>
+.isn_langton button {
+  width: 160px;
+  height: 30px;
+}
+.isn_langton span,
+.isn_langton input {
+  display: inline-block;
+  width: auto;
+}
+</style>
+<title>La Fourmi de Langton</title>
+<script> 'use strict';
+function get(name) { return document.getElementById(name); }
+function hex(x) { return x.toString(16); }
+
+const DH=0, DG=1, DB=2, DD=3;
+function pas (f)
+{
+	if (f.dir == DH) f.y--;
+	if (f.dir == DG) f.x--;
+	if (f.dir == DB) f.y++;
+	if (f.dir == DD) f.x++;
+}
+</script>
+
+<body class="isn_langton"> <h1>La Fourmi de Langton</h1>
+
+<h2>Introduction</h2>
+
+<p>La fourmi de Langton est un concept introduit par Christopher Langton en 1986, qui illustre à merveille le principe de comportement émergent. Il s'agit d'un système de règles d'une extrême simplicité, mais dont l'évolution s'avère très vite complexe et difficile à prévoir.
+
+<p>Voici les principes de base de la fourmi de Langton :
+<ul>
+	<li>L'univers est une surface plane, couverte de cases carrées.</li>
+	<li>Chaque case affiche une couleur : soit blanche, soit noire. Initialement, toutes les cases sont blanches.</li>
+	<li>Sur une des cases se trouve une fourmi, capable de tourner, d'avancer et de changer la couleur de sa case.</li>
+</ul>
+
+<p>Les actions de la fourmi sont déterminées par la couleur de la case sur laquelle elle se trouve, et se déroulent toujours dans le même ordre :
+<ul>
+	<li>Si sa case est <b>blanche</b> : la fourmi tourne d'un quart de tour vers la droite, change la couleur de sa case en noir, et avance d'une case.</li>
+	<li>Si sa case est <b>noire</b> : la fourmi tourne d'un quart de tour vers la gauche, change la couleur de sa case en blanc, et avance d'une case.</li>
+</ul>
+
+<p>L'animation interactive ci-dessous permet de visualiser pas à pas le comportement de la fourmi pour mieux comprendre, durant les dix premières étapes de son itinéraire, en cliquant sur les boutons correspondant à ses actions.
+
+<div style="display: flex; flex-direction: row; align-items: center; gap:20px;">
+<canvas id="demo">
+	<p>Cette animation interactive requiert un élément <code>canvas</code> qui ne fonctionne pas dans ce navigateur.</p>
+	<img src="langton.gif" alt="Arrivée sur une case blanche : la fourmi tourne à droite, noircit la case et avance sur la case de droite.">
+</canvas>
+<div>
+	<div id="cpt_demo" style="min-height: 24px; margin-bottom: 16px"></div>
+	<button id="breinit" onclick="init_demo()" style="margin-bottom: 16px">Recommencer</button>
+	<ol>
+		<li><button id="bterrain" onclick="anim_terrain(0,true)">Créer le terrain</button></li>
+		<li><button id="bfourmi"  onclick="anim_fourmi (0,true)">Placer la fourmi</button></li>
+		<li>Répéter <span id="act"></span> : <ol>
+			<li><button id="brot" onclick="anim_tourner(0,true)">Tourner <span id="rot"></span></button></li>
+			<li><button id="bcol" onclick="anim_colorer(0,true)">Colorer <span id="col"></span></button></li>
+			<li><button id="bdir" onclick="anim_avancer(0,true)">Avancer <span id="dir"></span></button></li>
+		</ol></li>
+	</ol>
+</div>
+</div>
+
+<script>{ 'use strict';
+let vue = get("demo");
+let toile = vue.getContext("2d");
+
+let anim = 0, id = 0;
+
+const CB = 0xe0e0e0, CN = 0x606060;
+let terrain, fourmi, etape;
+
+function init_demo ()
+{
+	vue.width  = 300;
+	vue.height = 300;
+
+	toile.clearRect(0, 0, vue.width, vue.height);
+	toile.strokeRect(0, 0, vue.width, vue.height);
+
+	for (let b of ["breinit", "bfourmi", "brot", "bcol", "bdir"])
+		get(b).disabled = true;
+	get("bterrain").disabled = false;
+
+	ath(true);
+
+	cancelAnimationFrame(id);
+}
+
+init_demo();
+
+function fx () { return 100*fourmi.x + 50; }
+function fy () { return 100*fourmi.y + 50; }
+function fr () { return Math.PI - fourmi.dir*Math.PI/2; }
+function ft () { return terrain[fourmi.x][fourmi.y]; }
+
+const DNAMES = ["(nord)", "(ouest)", "(sud)", "(est)"];
+function ath (vider=false)
+{
+	if (vider)
+		for (s of ["cpt_demo", "act", "rot", "col", "dir"])
+			get(s).innerHTML = "";
+	else {
+		get("act").innerHTML = ft() == CB ? "(case <b>blanche</b>)" : "(case <b>noire</b>)";
+		get("rot").innerHTML = ft() == CB ? "à droite" : "à gauche";
+		get("col").innerHTML = ft() == CB ? "(noir)" : "(blanc)";
+		get("dir").innerHTML = DNAMES[(fourmi.dir + (ft() == CB ? DD : DG))%4];
+		get("cpt_demo").innerHTML = "<b>Étape : " + etape + "</b>";
+	}
+}
+
+function dessiner_ellipse (cx, cy, rx, ry)
+{
+	toile.beginPath();
+	toile.ellipse(cx, cy, rx, ry, 0, 0, 2*Math.PI);
+	toile.fill();
+}
+
+function dessiner_fourmi (x, y, r, a=1)
+{
+	toile.save();
+	toile.strokeStyle = toile.fillStyle = "#000000";
+	toile.globalAlpha = a;
+	toile.translate(x,y);
+	toile.rotate(r);
+	dessiner_ellipse(0,   0,  7, 10);
+	dessiner_ellipse(0,  20,  8, 11);
+	dessiner_ellipse(0, -25, 11, 16);
+	toile.stroke(new Path2D("M -5,-5 l -10,-8 l -5,5"));
+	toile.stroke(new Path2D("M  5,-5 l  10,-8 l  5,5"));
+	toile.stroke(new Path2D("M -5, 0 l -10,-5 l -7,7"));
+	toile.stroke(new Path2D("M  5, 0 l  10,-5 l  7,7"));
+	toile.stroke(new Path2D("M -5, 5 l  -8,-2 l -5,8"));
+	toile.stroke(new Path2D("M  5, 5 l   8,-2 l  5,8"));
+	toile.stroke(new Path2D("M -5,28 t -2,3 t  5,7"));
+	toile.stroke(new Path2D("M  5,28 t  2,3 t -5,7"));
+	toile.restore();
+}
+
+function dessiner_terrain (a=1)
+{
+	toile.save();
+	toile.globalAlpha = a;
+	toile.clearRect(0, 0, vue.width, vue.height);
+	for (let x = 0 ; x < 3 ; ++x)
+		for (let y = 0 ; y < 3 ; ++y) {
+			toile.fillStyle = "#" + hex(terrain[x][y]);
+			toile.fillRect(100*x, 100*y, 100, 100);
+			toile.strokeRect(100*x, 100*y, 100, 100);
+		}
+	toile.restore();
+}
+
+function anim_terrain (_ts, init=false)
+{
+	if (init) {
+		cancelAnimationFrame(id);
+		anim = 0;
+		terrain = [
+			[CB,CB,CB],
+			[CB,CB,CB],
+			[CB,CB,CB]
+		];
+		get("bterrain").disabled = true;
+		get("bfourmi").disabled = false;
+		get("breinit").disabled = false;
+	}
+
+	dessiner_terrain(anim/60);
+
+	if (anim++ < 60)
+		id = requestAnimationFrame(anim_terrain);
+}
+
+function anim_fourmi (_ts, init=false)
+{
+	if (init) {
+		cancelAnimationFrame(id);
+		anim = 0;
+		fourmi = { x:1, y:1, dir:DH };
+		etape = 0;
+		get("bfourmi").disabled = true;
+		get("brot").disabled = false;
+		ath();
+	}
+
+	dessiner_terrain();
+	dessiner_fourmi(fx(), fy(), fr(), anim/60);
+	if (anim++ < 60)
+		id = requestAnimationFrame(anim_fourmi);
+}
+
+let sens = 0;
+function anim_tourner (_ts, init=false)
+{
+	if (init) {
+		cancelAnimationFrame(id);
+		anim = 0;
+		sens = ft() == CB ? -1 : +1;
+		fourmi.dir = (fourmi.dir + (ft() == CB ? DD : DG))%4;
+		get("brot").disabled = true;
+		get("bcol").disabled = false;
+	}
+
+	dessiner_terrain();
+	dessiner_fourmi(fx(), fy(), fr() + sens*(1 - anim/60)*(Math.PI/2));
+
+	if (anim++ < 60)
+		id = requestAnimationFrame(anim_tourner);
+}
+
+function anim_colorer (_ts, init=false)
+{
+	if (init) {
+		cancelAnimationFrame(id);
+		anim = 0;
+		sens = ft() == CB ? -1 : +1;
+		terrain[fourmi.x][fourmi.y] = sens > 0 ? CB : CN;
+		get("bcol").disabled = true;
+		if (etape < 10)
+			get("bdir").disabled = false;
+	}
+
+	dessiner_terrain();
+	toile.fillStyle = "#" + hex(ft() - sens*(64-anim)*0x020202);
+	toile.fillRect(100*fourmi.x, 100*fourmi.y, 100, 100);
+	toile.strokeRect(100*fourmi.x, 100*fourmi.y, 100, 100);
+	dessiner_fourmi(fx(), fy(), fr());
+
+	if (anim++ < 64)
+		id = requestAnimationFrame(anim_colorer);
+}
+
+function anim_avancer (_ts, init=false)
+{
+	if (init) {
+		cancelAnimationFrame(id);
+		anim = 0;
+		sens = fourmi.dir < 2 ? -1 : +1;
+		pas(fourmi);
+		etape++;
+		console.log();
+		get("bdir").disabled = true;
+		get("brot").disabled = false;
+		ath();
+	}
+	dessiner_terrain();
+	if (fourmi.dir%2)
+		dessiner_fourmi(fx() - sens*(100-anim), fy(), fr());
+	else
+		dessiner_fourmi(fx(), fy() - sens*(100-anim), fr());
+
+	if (anim++ < 100)
+		id = requestAnimationFrame(anim_avancer);
+}
+}</script>
+
+<h2>Comportement</h2>
+
+<p>En observant les premiers mouvements de la fourmi, en particulier jusqu'à l'étape 8, on remarque une certaine symétrie dans ses déplacements, qui la ramène sur la case centrale.
+
+<p>Pour autant, la fourmi ne tourne pas en rond car, si elle repasse sur sa case initiale, l'environnement autour d'elle a changé : certaines cases sont devenues noires, ce qui la conduit à adopter par la suite une trajectoire différente, plus large, et finalement à sortir du terrain exigu où nous l'avions placée.
+
+<p>Mais si le terrain n'est pas borné, qu'advient-il de la fourmi ? Va-t-elle effectuer une série d'actions cycliques, et reproduire sans cesse le même motif ? Si oui, au bout de combien de temps ? Va-t-elle aller toujours plus loin, explorant à l'infini de nouvelles cases du terrain ?
+
+<p>Trouver une réponse à ces questions est étonamment peu intuitif, et en donner la preuve plus difficile encore. Avant de se prononcer, peut-être faudrait-il en voir davantage. Nous avons pu observer les dix premières étapes. Que se passe-t-il après cent étapes ? Après mille ? Après dix mille ?
+
+<p><q>Un bon informaticien est un informaticien fainéant.</q>, dit-on parfois en plaisantant, car le meilleur informaticien n'est pas celui qui fait, mais celui qui fait faire à la machine. Alors en bons informaticiens, laissons l'ordinateur calculer ce qu'il advient de la fourmi, et observons ses déplacements.
+
+<p>L'animation interactive ci-dessous permet de simuler, pas à pas ou en accéléré, les déplacements de la fourmi (désormais représentée par un triangle rouge), ansi que d'ajuster la vitesse de la simulation. Elle fonctionne jusqu'à sa sortie du terrain, après un peu plus de 11 000 étapes. Observez les déplacements de la fourmi. Quelles sont vos conclusions ?
+
+<div id="controles" style="padding:16px">
+	<b>Étape : <span id="cpt" style="width: 5em">0</span></b>
+	Vitesse max.: <input id="vitesse" type="range" min=1 max=100 value=5 oninput="vitesse()">
+	<span id="fps">5/s</span>
+	<br style="line-height:32px">
+	<button id="reinit" onclick="init_visu();">Recommencer</button>
+	<button id="avancer" onclick="avancer()">Étape suivante</button>
+	<button id="pause" onclick="pause()">Avance rapide</button>
+</div>
+<canvas id="display">Cette animation interactive requiert un élément <code>canvas</code>, qui ne fonctionne pas dans ce navigateur.</canvas>
+
+<script>{ 'use strict';
+function tableau2d (larg, haut)
+{
+	let t = new Array(larg);
+	for (let x = 0 ; x < t.length ; x++) {
+		t[x] = new Array(haut);
+		t[x].fill(0, 0, haut);
+	}
+	return t;
+}
+
+// Logique
+let etape, grille, fourmis;
+
+// Dessin
+let cote, palette;
+let vue = get("display");
+let toile = vue.getContext("2d");
+
+// Contrôle
+let stop, fps, id;
+
+// Dessine un triangle représentant la fourmi f
+function peindre_fourmi (f)
+{
+	toile.save();
+	toile.translate((f.x+0.5)*cote, (f.y+0.5)*cote);
+	toile.rotate(-f.dir*Math.PI/2);
+	toile.beginPath();
+	toile.moveTo(      0, -cote/2);
+	toile.lineTo(-cote/2,  cote/2);
+	toile.lineTo( cote/2,  cote/2);
+	toile.fillStyle = f.coul;
+	toile.fill();
+	toile.restore();
+}
+
+// Effectue un pas de calcul et actualise le dessin.
+function avancer () {
+	for (let f of fourmis) {
+		let couleur = grille[f.x][f.y];
+		f.dir = (f.dir + f.prog[couleur])%4;
+		grille[f.x][f.y] = (couleur + 1) % f.prog.length;
+
+		toile.fillStyle = palette[grille[f.x][f.y]];
+		toile.fillRect(f.x*cote, f.y*cote, cote, cote);
+
+		pas(f);
+	}
+
+	for (let f of fourmis)
+		peindre_fourmi(f);
+
+	get("cpt").innerHTML = ++etape;
+	get("reinit").disabled = false;
+}
+
+// Interrompt/reprend la progression de la simulation.
+function pause () {
+	let b = get("pause");
+	if (!stop) {
+		clearInterval(id);
+		b.innerHTML = "Lecture";
+	} else {
+		id = setInterval(avancer, 1000/fps);
+		b.innerHTML = "Pause";
+	}
+	stop ^= true;
+}
+
+// Ajuste le réglage de la vitesse.
+function vitesse () {
+	fps = get("vitesse").value;
+	get("fps").innerHTML = fps+"/s";
+	clearInterval(id);
+	if (!stop)
+		id = setInterval(avancer, 1000/fps);
+}
+
+// Redimensionne le canevas et efface la toile.
+function toile_blanche (larg, haut) {
+	vue.width = larg;
+	vue.height = haut;
+
+	toile.clearRect(0, 0, larg, haut);
+	toile.strokeRect(0, 0, larg, haut);
+
+	for (let f of fourmis)
+		peindre_fourmi(f);
+}
+
+// Initialisation de la fourmi de langton (logique, visualisation, contrôles).
+function init_visu () {
+	let larg=75, haut=60;
+	etape = 0;
+	grille = tableau2d(larg,haut);
+	fourmis = [];
+	fourmis.push({ x:(larg+15)/2, y:haut/2, dir:DH, prog:[DD,DG], coul:"#ff2020" });
+
+	cote = Math.max(1, Math.min(10, get("controles").offsetWidth/75)) || 5;
+	palette = ["#e0e0e0", "#202020"];
+	toile_blanche(larg*cote, haut*cote);
+
+	stop = true;
+	vitesse();
+	get("reinit").disabled = true;
+	get("pause").innerHTML = "Avance rapide";
+	get("cpt").innerHTML = 0;
+}
+
+init_visu();
+}</script>
+
+<h2>Observations</h2>
+
+<p>À l'étude des tracés effectués par la fourmi, certaines étapes (8, 96, 184, 368, 472) semblent particulièrement remarquables, par la symétrie des motifs qu'elles présentent. À l'inverse, d'autres passages (entre 500 et 10 000) ne semblent pas exhiber de structure particulière, et les motifs correspondants sont entièrement chaotiques. Finalement, après environ 10 200 étapes, un changement se produit : la fourmi cesse ses déplacements erratiques, et se met à tracer un motif régulier, répété le long d'une diagonale.
+
+<p>Ce motif tracé par la fourmi de Langton est surnomé <q>l'autoroute</q>. Tout porte à croire qu'une fois entamée, cette autoroute se poursuit indéfiniment, et c'est en effet le cas. Agrandir le terrain pour poursuivre la simulation est sans intérêt : l'autoroute s'étend simplement plus loin, deux cases à gauche et deux cases plus bas, selon un cycle de 104 étapes.
+
+<p>C'est ici que s'achève le travail de la machine, et que la réflexion reprend ses droits. Pourquoi ce motif en particulier ? Si les conditions initiales avaient été différents (par exemple, en noircissant certaines cases sur le trajet de la fourmi), en serait-il allé autrement ? Existe-t-il d'autres motifs capables, comme l'autoroute, de piéger la fourmi de Langton ?
+
+<h2>Raisonnement</h2>
+
+<p>Un résultat mathématique essentiel est démontré pour la fourmi de Langton : sa trajectoire n'est pas bornée, c'est-à-dire que la fourmi visite toujours tôt ou tard de nouvelles cases. En d'autres termes, il n'est pas possible de délimiter une région finie dont la fourmi ne sortira jamais.
+
+<p>Ce résultat semble évident après avoir observé le tracé de l'autoroute, mais il y a une différence importante en mathématique et en informatique entre une conjecture (une hypothèse qui semble juste, fondée sur l'observation) et un théorème (une certitude, justifiée par un raisonnement rigoureux).
+
+<p>De plus, le raisonnement qui soutient ce théorème est valable pour toute configuration de départ : aucune combinaison de cases noires ou blanches ne peut empêcher la fourmi de poursuivre sa route indéfiniment, ce qui serait difficile à vérifer à l'aide d'une machine (après tout, il existe une infinité de configurations initiales).
+
+<p>La preuve du théorème elle même n'est pas très complexe, et assez simple à suivre pour un mathématicien (voir <a href="#preuve">en bas de cette page</a> pour les curieux) ; cependant, si elle permet de se convaincre que la trajectoire de la fourmi n'est pas bornée, elle ne décrit pas exactement la nature de cette trajectoire : l'autoroute que nous avons pu observer ne figure nulle part dans cette démonstration.
+
+<p>D'autres expériences ont été conduites avec la fourmi de Langton, pour observer son comportement avec différentes configurations initiales. Si son comportement varie en fonction des cases noires placées sur son chemin, toutes les expériences semblent suggérer qu'une autoroute finit par se former et se poursuivre indéfiniment, pour toute configuration initiale finie (c'est-à-dire qui comporte un nombre donné de cases noires ou blanches). Mais cette fois, il ne s'agit que d'une conjecture : il n'existe pas de preuve que l'autoroute soit la seule configuration que la fourmi poursuive indéfiniment.
+
+<p>Il existe d'autres variantes de la fourmi de Langton : certaines incluent plusieurs fourmis, d'autres permettent davantage de couleurs (et donc d'instructions) différentes, et enfin certaines attribuent à la fourmi (qu'on appelle alors une <q>turmite</q>) un état interne, qui influe également sur son comportement et change en fonction de la couleur des cases rencontrées. Mais ceci est une autre histoire...
+
+<h2>Annexes</h2>
+
+<h3>Références</h3>
+
+<p>Voici quelques autres ressources qui parlent de la fourmi de Langton :
+<ul>
+	<li>Christopher Langton, "<a target="_blank" href="https://deepblue.lib.umich.edu/handle/2027.42/26022">Studying Artificial Life with Cellular Automata</a>" (l'article original de Christopher Langton)</li>
+	<li><a target="_blank" href="https://sciencetonnante.wordpress.com/2011/03/21/la-fourmi-de-langton/">L'article</a> et la <a target="_blank" href="https://sciencetonnante.wordpress.com/2015/12/12/la-fourmi-de-langton-video/">vidéo</a> de David Louapre, alias Science Étonnante</li>
+	<li>Jean-Paul Delahaye, "<a target="_blank" href="https://www.pourlascience.fr/sr/logique-calcul/les-intrigants-chemins-de-la-fourmi-de-langton-17766.php">Les Intrigants Chemins de la fourmi de Langton</a>" (Pour la science N°503)</li>
+	<li><a target="_blank" href="https://fr.wikipedia.org/wiki/Fourmi_de_Langton">La Fourmi de Langton</a> sur Wikipédia (et sa <a target="_blank" href="https://en.wikipedia.org/wiki/Langton%27s_ant">version anglophone</a>, plus complète)</li>
+	<li>Terry Pratchett, Ian Stewart et Jack Cohen, "La Science du Disque-Monde"</li>
+</ul>
+
+<h3 id="preuve">Preuve du théorème</h3>
+
+<p><q>La trajectoire de la fourmi de Langton n'est pas bornée.</q> Ce théorème peut se déduire de résultats connus sur la trajectoire des particules dans les simulations de gaz à base d'automates cellulaires, attribués selon les sources à Kong et Cohen ("Diffusion and Propagation in Triangular Lorentz Lattice Gas Cellular Automata", 1991) ou Bunimovich et Troubetzkoy ("Recurrence Properties of Lorentz Lattice Gas Cellular Automata", 1992).
+
+<p>Dans le cas de la fourmi de Langton, le raisonnement peut être formulé comme suit :
+<ol>
+	<li>Tout d'abord, en raison des règles qui la font tourner d'un quart de tour, si la fourmi arrive sur une case dans l'axe vertical, elle en sort en entrant sur une case adjacente dans l'axe horizontal, et réciproquement. Par conséquent, les cases du terrain forment un damier où, sur chaque ligne et chaque colonne, une case sur deux est une case dite horizontale (la fourmi y entre toujours depuis l'est ou l'ouest), et l'autre une case verticale (la fourmi arrive toujours du nord ou du sud).</li>
+	<li>Supposons maintenant que la trajectoire de la fourmi est bornée : comme la fourmi ne visite alors qu'un nombre fini de cases alors qu'elle circule indéfiniment, il s'ensuit qu'un ensemble de cases sera visité indéfiniment.</li>
+	<li>Parmi celles-ci il en existe au moins une qui forme un "coin", c'est-à-dire telle que les cases situées à l'est et au nord de celle-ci ne sont pas visitées indéfiniment (sinon la trajectoire ne serait pas bornée). Deux cas de figure sont alors possibles, d'après le lemme 1 : <ol>
+		<li>Soit le coin est une cellule horizontale, visitée indéfiniment : la fourmi doit donc y entrer indéfiniment par l'ouest, et comme la couleur de la case change à chaque visite, en sortir indéfiniment vers le sud et vers le nord (une fois sur deux), ce qui est une contradiction.</li>
+		<li>Soit le coin est une cellule verticale, visitée indéfiniment : la fourmi doit donc y entrer indéfiniment par le sud, et selon le même raisonnement, elle en ressort aussi souvent vers l'ouest que vers l'est, également une contradiction.</li>
+	</ol></li>
+	<li>Tous les cas mènent à une contradiction, donc l'hypothèse 2 est absurde. La trajectoire de la fourmi n'est donc pas bornée, CQFD.</li>
+</ol>
