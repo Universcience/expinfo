@@ -1,0 +1,283 @@
+<!doctype html>
+<!--
+HTMLife - An HTML5/JS implementation of Conway's Game of Life.
+Copyright (c) 2020 - Jérôme Kirman
+
+This program is free software: you can redistribute it and/or modify it
+under the terms of the GNU Affero General Public License as published
+by the Free Software Foundation, either version 3 of the License,
+or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Affero General Public License for more details.
+
+A full copy of the GNU Affero General Public License is available
+at the following URL: <http://www.gnu.org/licenses/>.
+-->
+
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Le Jeu de la vie</title>
+<style>
+body {
+	display: flex;
+	height: 100vh;
+	margin: 0px;
+}
+
+#controles {
+	flex-shrink: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+#vue { flex-grow: 1 }
+
+fieldset {
+	display: flex;
+	flex-direction: column;
+}
+legend { font-size: small }
+
+body, button, fieldset {
+	background-color: #001400;
+	border-color: #00ff00;
+	color: #00ff00;
+}
+
+</style>
+<script> 'use strict';
+let int = Math.floor, min = Math.min, max = Math.max;
+function clamp(a, x, b) { return max(a, min(x, b)); }
+function mod(a, b) { return (a%b + b) % b; }
+function get(name) { return document.getElementById(name); }
+</script>
+
+<body class="isn_life">
+<div id="controles" style="padding:16px">
+	<button id="reinit" onclick="reinit();">Initialiser</button>
+	<b>Étape : <span id="cpt">0</span></b>
+	<button id="avancer" onclick="avancer()">Étape suivante</button>
+	<button id="pause" onclick="pause()">Avance rapide</button>
+	<fieldset>
+		<legend>Vitesse max.: <span id="freq">-/s</span></legend>
+		<input id="vitesse" type="range" min=0 max=8 oninput="choisir_vitesse(this.value)">
+	</fieldset>
+	<fieldset>
+		<legend>Grossissement : <span id="ppc">1 px</span></legend>
+		<input id="taille" type="range" min=0 max=8 oninput="choisir_taille(this.value)">
+	</fieldset>
+
+</div>
+<canvas id="vue" tabindex="0" width="50" height="1">Cette animation interactive requiert un élément <code>canvas</code>, qui ne fonctionne pas dans ce navigateur.</canvas>
+
+<script> 'use strict';
+// Logique
+let etape;
+let grille;
+
+const lsim = 1000, hsim = 1000;
+let grille_p = new Uint8Array(lsim*hsim);
+let grille_i = new Uint8Array(lsim*hsim);
+
+// Calcule la prochaine valeur d'une cellule de la grille et l'inscrit dans ngrille.
+function actucell (x, y, ngrille)
+{
+	let xg = x == 0 ? lsim-1 : x-1, xd = (x+1)%lsim;
+	let yh = y == 0 ? hsim-1 : y-1, yb = (y+1)%hsim;
+	let s = grille[yh*lsim + xg] + grille[yh*lsim + x ] + grille[yh*lsim + xd]
+	      + grille[ y*lsim + xg] + grille[ y*lsim + x ] + grille[ y*lsim + xd]
+	      + grille[yb*lsim + xg] + grille[yb*lsim + x ] + grille[yb*lsim + xd];
+
+	ngrille[y*lsim+x] = (s == 3 || s == 4 && grille[y*lsim+x]) ? 1 : 0;
+}
+
+// Effectue un pas de calcul
+function avancer () {
+	let ngrille = etape%2 ? grille_p : grille_i;
+
+	for (let y = 0 ; y < hsim ; y++)
+		for (let x = 0 ; x < lsim ; x++)
+			actucell (x, y, ngrille);
+
+	grille = ngrille;
+
+	etape++;
+}
+
+// Dessin
+let vue = get("vue"); 
+let toile = vue.getContext("2d", { alpha: false });
+
+let lvue, hvue; // Taille du canevas.
+let x0 = 0, y0 = 0; // Décalage de la vue (en cases).
+let cote; // Taille d'une cellule dans la vue.
+
+// Colore le pixel (x,y) en r/v/b/a dans les données d'une image bitmap de largeur l.
+function ppixel (bmpd, l, x, y, r, v, b, a=0xFF)
+{
+  let p = 4*l*y + 4*x;
+  bmpd[p+0] = r;
+  bmpd[p+1] = v;
+  bmpd[p+2] = b;
+  bmpd[p+3] = a;
+}
+
+// Redessine le contenu de la simulation visible à l'écran.
+function repeindre () {
+	x0 = mod(x0, lsim);
+	y0 = mod(y0, hsim);
+
+	toile.clearRect(0, 0, lvue, hvue);
+
+	toile.fillStyle = "#0F0";
+	for (let x = 0 ; x < lvue/cote ; x++)
+		for (let y = 0 ; y < hvue/cote ; y++)
+			if (grille[((y0+y)%hsim)*lsim + (x0+x)%lsim])
+				toile.fillRect(x*cote, y*cote, cote, cote);
+	
+	get("cpt").innerHTML = etape;
+	if (etape > 0)
+		get("reinit").disabled = false;
+
+	requestAnimationFrame(repeindre);
+}
+
+// Contrôle simulation/vue
+let stop; // Pause ?
+let fsim; // Fréquence visée pour la simulation
+let id; // Identifiant de l'intervalle de simulation
+
+// Interrompt/reprend la progression de la simulation.
+function pause () {
+	let b = get("pause");
+	if (!stop) {
+		clearInterval(id);
+		b.innerHTML = "Avance";
+	} else {
+		id = setInterval(avancer, 1000/fsim);
+		b.innerHTML = "Pause";
+	}
+	stop ^= true;
+}
+
+// Ajuste la vitesse maximale de la simulation.
+function choisir_vitesse (nval) {
+	let sel = get("vitesse");
+	sel.value = clamp(sel.min, nval, sel.max);
+	fsim = 1 << sel.value;
+	get("freq").innerHTML = fsim+"/s";
+	clearInterval(id);
+	if (!stop)
+		id = setInterval(avancer, 1000/fsim);
+}
+
+// Ajuste la taille d'affichage d'une cellule.
+function choisir_taille (nval) {
+	let sel = get("taille");
+	sel.value = clamp(sel.min, nval, sel.max);
+	cote = 1 << sel.value;
+	get("ppc").innerHTML = cote+"px";
+}
+
+// Ajuste la taille du canevas pour occuper la place disponible dans la fenêtre.
+function cadrer ()
+{
+	// NOTE: Pas une noop.
+	vue.width = 1;
+	vue.height = 1;
+	lvue = vue.width = vue.offsetWidth;
+	hvue = vue.height = vue.offsetHeight;
+
+	toile.clearRect(0, 0, vue.width, vue.height);
+	toile.strokeRect(0, 0, vue.width, vue.height);
+}
+
+// Contrôles claviers du canevas (déplacement/grossissment).
+function clavier (e)
+{
+	const majd = 20; // Déplacement avec la touche Maj.
+
+	let action = true;
+	switch (e.key) {
+	// Déplacement
+	case 'ArrowUp':    y0 -= (e.shiftKey ? majd : 1); break;
+	case 'ArrowDown':  y0 += (e.shiftKey ? majd : 1); break;
+	case 'ArrowLeft':  x0 -= (e.shiftKey ? majd : 1); break;
+	case 'ArrowRight': x0 += (e.shiftKey ? majd : 1); break;
+	// Grossissement
+	case '+': choisir_taille(int(get("taille").value) + 1); break;
+	case '-': choisir_taille(int(get("taille").value) - 1); break;
+  // Simulation
+	case 'r': reinit(); break;
+	case 'n': avancer(); break;
+	case ' ': pause(); break;
+	case '*': choisir_vitesse(int(get("vitesse").value) + 1); break;
+	case '/': choisir_vitesse(int(get("vitesse").value) - 1); break;
+	// Autres touches (maintenir le comportement par défaut)
+	default: action = false;
+	}
+
+	if (action)
+		e.preventDefault();
+}
+
+// Réagit au clic et glissement du pointeur.
+function pointeur (e)
+{
+	let x = int(x0 + e.offsetX/cote)%lsim, y = int(y0 + e.offsetY/cote)%hsim;
+
+	if (e.type == "pointerdown")
+		e.target.setPointerCapture(e.pointerId);
+
+	if (e.target.hasPointerCapture(e.pointerId)) {
+		x0 -= Math.round(e.movementX/cote);
+		y0 -= Math.round(e.movementY/cote);
+	}
+}
+
+// Réagit à la molette de la souris par un zoom gardant le pointeur sur la même case.
+function zoom_strat (e)
+{
+	let acote = cote;
+	choisir_taille( int(get("taille").value) + (e.deltaY < 0 ? +1 : -1) );
+
+	x0 += int(e.offsetX/acote - e.offsetX/cote);
+	y0 += int(e.offsetY/acote - e.offsetY/cote);
+}
+
+// Réinitialisation (logique, visualisation, contrôles).
+function reinit () {
+	grille = grille_p;
+	etape = 0;
+
+	cadrer();
+
+	for (let x = 0 ; x < lsim ; x++)
+		for (let y = 0 ; y < hsim; y++)
+			grille[y*lsim+x] = y < 300 ? Math.random() > .80 : 0;
+
+	stop = true;
+	get("cpt").innerHTML = 0;
+	get("reinit").disabled = true;
+	get("pause").innerHTML = "Démarrer";
+
+	choisir_vitesse(5);
+	choisir_taille(2);
+	vue.focus();
+}
+
+requestAnimationFrame(repeindre);
+
+window.addEventListener("resize", cadrer);
+vue.addEventListener("keydown", clavier, true);
+vue.addEventListener("wheel", zoom_strat);
+for (let ev of ["pointerdown", "pointermove"])
+	vue.addEventListener(ev, pointeur);
+
+reinit();
+</script>
