@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
 HTMLife - An HTML5/JS implementation of Conway's Game of Life.
-Copyright (c) 2020 - Jérôme Kirman
+Copyright (c) 2020-2021 - Jérôme Kirman
 
 This program is free software: you can redistribute it and/or modify it
 under the terms of the GNU Affero General Public License as published
@@ -49,6 +49,16 @@ body, button, fieldset {
 	color: #00ff00;
 }
 
+#raccourcis {
+	position: absolute;
+	right: 0;
+	display: none;
+	background-color: #000000;
+	border-color: #00ff00;
+	border-style: solid;
+	text-align: center;
+	padding: 8px;
+}
 </style>
 <script> 'use strict';
 let int = Math.floor, min = Math.min, max = Math.max;
@@ -62,7 +72,7 @@ function get(name) { return document.getElementById(name); }
 	<button id="reinit" onclick="reinit();">Initialiser</button>
 	<b>Étape : <span id="cpt">0</span></b>
 	<button id="avancer" onclick="avancer()">Étape suivante</button>
-	<button id="pause" onclick="pause()">Avance rapide</button>
+	<button id="pause" onclick="pause()">Démarrer</button>
 	<fieldset>
 		<legend>Vitesse max.: <span id="freq">-/s</span></legend>
 		<input id="vitesse" type="range" min=0 max=8 oninput="choisir_vitesse(this.value)">
@@ -71,9 +81,27 @@ function get(name) { return document.getElementById(name); }
 		<legend>Grossissement : <span id="ppc">1 px</span></legend>
 		<input id="taille" type="range" min=0 max=8 oninput="choisir_taille(this.value)">
 	</fieldset>
-
+	<button id="manuel" onclick="ouvrir_manuel()">Plus d'infos</button>
+	<button id="clavier" onclick="afficher_raccourcis()">Raccourcis clavier</button>
 </div>
+
 <canvas id="vue" tabindex="0" width="50" height="1">Cette animation interactive requiert un élément <code>canvas</code>, qui ne fonctionne pas dans ce navigateur.</canvas>
+
+<div id="raccourcis">
+Cliquer dans la vue centrale<br>
+pour activer les raccourcis.<br>
+===
+<table>
+	<tr><td>(MAJ+)<br>&#x2191;/&#x2193;/&#x2190;/&#x2192;</td><td>Déplacer vue</td></tr>
+	<tr><td>r</td><td>Réinitialiser</td></tr>
+	<tr><td>n</td><td>Étape suivante</td></tr>
+	<tr><td>ESPACE</td><td>Pause/Reprise</td></tr>
+	<tr><td>* /</td><td>Régler vitesse</td></tr>
+	<tr><td>+ -</td><td>Grossissement</td></tr>
+	<tr><td>?</td><td>Ouvrir l'aide</td></tr>
+	<tr><td>h</td><td>Raccourcis</td></tr>
+</table>
+</div>
 
 <script> 'use strict';
 // Logique
@@ -110,7 +138,7 @@ function avancer () {
 }
 
 // Dessin
-let vue = get("vue"); 
+let vue = get("vue");
 let toile = vue.getContext("2d", { alpha: false });
 
 let lvue, hvue; // Taille du canevas.
@@ -139,10 +167,8 @@ function repeindre () {
 		for (let y = 0 ; y < hvue/cote ; y++)
 			if (grille[((y0+y)%hsim)*lsim + (x0+x)%lsim])
 				toile.fillRect(x*cote, y*cote, cote, cote);
-	
+
 	get("cpt").innerHTML = etape;
-	if (etape > 0)
-		get("reinit").disabled = false;
 
 	requestAnimationFrame(repeindre);
 }
@@ -157,7 +183,7 @@ function pause () {
 	let b = get("pause");
 	if (!stop) {
 		clearInterval(id);
-		b.innerHTML = "Avance";
+		b.innerHTML = "Démarrer";
 	} else {
 		id = setInterval(avancer, 1000/fsim);
 		b.innerHTML = "Pause";
@@ -197,6 +223,29 @@ function cadrer ()
 	toile.strokeRect(0, 0, vue.width, vue.height);
 }
 
+// Ouvre ou réaffiche le mode d'emploi dans une fenêtre séparée.
+let manuel = null;
+function ouvrir_manuel ()
+{
+	if (!manuel || manuel.closed)
+		manuel = window.open("./manuel.html", "manuel", "scrollbars=yes");
+	else
+		manuel.focus();
+}
+
+// Affiche ou masque la liste des raccourcis claviers.
+let popup = false;
+function afficher_raccourcis (afficher=!popup)
+{
+	let rstyle = get("raccourcis").style;
+	if (afficher)
+		rstyle.display = "grid";
+	else
+		rstyle.display = "none";
+
+	popup = rstyle.display == "grid";
+}
+
 // Contrôles claviers du canevas (déplacement/grossissment).
 function clavier (e)
 {
@@ -218,6 +267,9 @@ function clavier (e)
 	case ' ': pause(); break;
 	case '*': choisir_vitesse(int(get("vitesse").value) + 1); break;
 	case '/': choisir_vitesse(int(get("vitesse").value) - 1); break;
+	// Aide
+	case '?': ouvrir_manuel(); break;
+	case 'h': afficher_raccourcis(!popup); break;
 	// Autres touches (maintenir le comportement par défaut)
 	default: action = false;
 	}
@@ -259,11 +311,10 @@ function reinit () {
 
 	for (let x = 0 ; x < lsim ; x++)
 		for (let y = 0 ; y < hsim; y++)
-			grille[y*lsim+x] = y < 300 ? Math.random() > .80 : 0;
+			grille[y*lsim+x] = y < hsim/2 ? Math.random() > .80 : 0;
 
 	stop = true;
 	get("cpt").innerHTML = 0;
-	get("reinit").disabled = true;
 	get("pause").innerHTML = "Démarrer";
 
 	choisir_vitesse(5);

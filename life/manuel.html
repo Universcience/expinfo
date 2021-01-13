@@ -1,0 +1,310 @@
+<!doctype html>
+<!--
+HTMLife - An HTML5/JS implementation of Conway's Game of Life.
+Copyright (c) 2021 - Jérôme Kirman
+
+This program is free software: you can redistribute it and/or modify it
+under the terms of the GNU Affero General Public License as published
+by the Free Software Foundation, either version 3 of the License,
+or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Affero General Public License for more details.
+
+A full copy of the GNU Affero General Public License is available
+at the following URL: <http://www.gnu.org/licenses/>.
+-->
+
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Mode d'emploi – Le Jeu de la vie</title>
+<style>
+body {
+	background-color: #001400;
+	color: #00ff00;
+}
+
+a { color: #0080ff }
+a:visited { color: #00a0a0 }
+
+.catalogue {
+	display: grid;
+	grid-auto-flow: column;
+	grid-template-rows: auto auto;
+	grid-auto-columns: max-content;
+	grid-column-gap: 20px;
+	text-align: center;
+	width: max-content;
+	background-color: #000000;
+	padding-inline: 16px;
+	padding-block: 4px;
+}
+</style>
+
+<body> <h1> Le Jeu de la vie </h1>
+
+<p> Le Jeu de la vie est une application web conçue pour le Palais de la découverte, qui permet de visualiser le fonctionnement du <a href="https://fr.wikipedia.org/wiki/Jeu_de_la_vie">jeu de la vie</a> proposé par John H. Conway.
+
+<p> L'application permet de simuler et visualiser le déroulement du jeu de la vie sur un terrain fini, en partant d'une configuration aléatoire.
+
+<nav> <h2>Sommaire</h2>
+<ol>
+	<li><a href="#semantique">Description détaillée</a></li>
+	<li><a href="#interface">Interface et raccourcis</a></li>
+	<li><a href="#resultats">Quoi observer ?</a></li>
+</ol>
+</nav>
+
+<section id="semantique"> <h2>Description détaillée</h2>
+<p> La simulation se déroule sur une grille carrée finie de 1000×1000 cases, horizontalement et verticalement circulaire (avancer indéfiniment dans une direction revient toujours au point de départ) ; chaque case constitue une cellule.
+
+<p> En vertu des règles du jeu de la vie de Conway, une cellule « naît » lorsque trois de ses huit voisines sont vivantes, et reste en vie aussi longtemps qu'elle possède deux ou trois voisines vivantes ; dans le cas contraire elle meurt (par isolement ou surpopulation). L'exemple suivant illustre ce fonctionnement pour la cellule centrale : elle naît à la première génération, se maintient en vie à la seconde grâce à ses deux voisines, et meurt à la troisième par isolement.
+
+<div class="catalogue">
+<pre>
+. . o     . . .     . . .     . . .
+o . o     o o .     . o .     . . .
+. . .     . . o     . . .     . . .
+
+Gen 0     Gen 1     Gen 2     Gen 3
+</pre>
+</div>
+
+<p> Dans l'application, le terrain est initialisé à la génération zéro en deux bandes horizontales : l'une est peuplée de cellules vivantes placées aléatoirement (chaque cellule a initialement 30% de chances d'être en vie) ; l'autre est entièrement déserte. Initialement, la vue centrale montre une partie de la première région.
+</section>
+
+<section id="interface"> <h2>Interface et raccourcis</h2>
+<p> L'application est séparée en deux volets : une barre de contrôle à gauche, et une vue de la simulation qui occupe le reste de l'écran. Les cellules vivantes y figurent sous forme de carrés verts, et les cellules mortes en noir. Le menu de gauche offre les contrôles suivants :
+<ul>
+	<li><strong>Initialiser</strong> : Remet la simulation dans son état initial, en replaçant aléatoirement les cellules de départ.</li>
+	<li><strong>Étape suivante</strong> : Avance la simulation d'une étape, en passant à la génération suivante. Permet de visualiser pas à pas le déroulement d'un phénomène.</li>
+	<li><strong>Démarrer/Pause</strong> : Lance ou interrompt le déroulement automatique de la simulation.</li>
+	<li><strong>Vitesse max.</strong> : Ajuste la vitesse maximale de la simulation, en nombre d'étapes par seconde. Remarque : la limite sélectionnée est théorique : la vitesse d'exécution réelle dépend des performances de la machine et du navigateur utilisés, et sera généralement inférieure à la vitesse maximale.</li>
+	<li><strong>Grossissement</strong> : Ajuste la taille (en pixels) des cellules individuelles, pour avoir une vue d'ensemble ou observer de près l'évolution d'un groupe de cellules. Remarque : régler la taille au minimum dans une fenêtre maximisée peut avoir un impact sur les performances, et donc sur la vitesse de simulation.</li>
+	<li><strong>Plus d'infos</strong> : Permet d'accéder à cette page.</li>
+	<li><strong>Raccourcis clavier</strong> : Affiche/masque la liste des raccourcis claviers dans le coin supérieur droit. Remarque : pour des raisons d'accessibilité, les raccourcis ne sont actifs que si la vue principale est sélectionnée (par exemple au moyen d'un clic dans la vue centrale).</li>
+</ul>
+
+<p> La vue sur la simulation offerte par le cadre central peut être déplacée à l'aide des raccourcis clavier (touches fléchées, MAJ pour aller plus vite), ou contrôlée avec la souris, par glisser-déplacer. La molette permet d'ajuster le grossissement (la cellule placée sous le pointeur conserve sa position dans ce cas).
+</section>
+
+<section id="resultats"> <h2>Quoi observer ?</h2>
+
+<h3>Évolution de la simulation</h3>
+<p> La configuration aléatoire initiale de la simulation est hautement instable ; elle évolue en quelques générations vers des configurations plus typiques du jeu de la vie. Celles-ci comportent un nombre important de motifs fixes appelés <em>natures mortes</em>, ainsi que des motifs périodiques appelés <em>oscillateurs</em>.
+
+<p> Occasionnellement, des motifs capables de se déplacer en se reformant périodiquement à une courte distance de leur position précédente apparaissent, appelés des <em>vaisseaux</em>. Ceux qui émergent dans le chaos disparaissent rapidement lorsqu'ils se heurtent à d'autres cellules vivantes, mais ceux qui se forment à la frontière de la région vide sont susceptibles de « s'échapper » et de naviguer pendant de nombreuses générations (jusqu'à faire le tour du monde et à atteindre à nouveau une zone densément peuplée).
+
+<p> La quasi-totalité des vaisseaux ainsi formés sont des <em>planeurs</em>, une configuration de cinq cellules qui se déplace en diagonale ; mais il est possible, avec beaucoup de chance, de voir apparaître un vaisseau spatial, qui se déplace verticalement.
+
+<p> Il arrive également que des planeurs traversant l'océan entrent en collision pour former des îlots durables de cellules vivantes. Ces îlots adoptent souvent des configurations similaires (car il n'y a qu'un nombre limité de façons pour deux planeurs d'entrer en collision), mais peuvent par la suite être « sculptés » par l'impact de planeurs ultérieurs.
+
+<p> Au fil des générations, des configurations stables (natures mortes + oscillateurs), appelées <em>cendres</em> finissent par dominer dans la plupart des régions, occasionellement perturbées aux frontières par l'impact d'un planeur ; à l'inverse, d'autres régions continuent à « brûler » pendant plus ou moins longtemps.
+
+<p> Avec assez de temps (généralement quelques milliers de générations), la simulation ne contient plus que des cendres, et oscille éternellement entre deux configurations successives (parfois plus quand un oscillateur de période plus longue s'est formé, le plus souvent un <em>pulsar</em>). Il ne reste plus qu'à passer en revue les cendres à la recherche de configurations remarquables, ou lancer une nouvelle simulation.
+
+<h3>Catalogue</h3>
+<p> Un inventaire exhaustif des configurations connues du jeu de la vie est maintenu sur le <a href="https://www.conwaylife.com/wiki/Main_Page">LifeWiki</a> (anglophone) ; en raison de l'infinie richesse de ses motifs, il ne saurait être reproduit ici. Mais à défaut, voici un petit dictionnaire visuel des objets les plus courants.
+
+<h4>Natures mortes</h4>
+<p> L'immense majorité des cendres est formée de clignotants et de natures mortes de taille réduite. Certaines de ces dernières (comme le navire ou la mare) ont une infinité de variations de taille croissante ; les versions compactes listées ici étant les plus fréquentes (le nombre entre parenthèses donne le nombre de cellules).
+
+<div class="catalogue">
+<code>Bloc (4)</code>
+<pre>
+. . . .
+. o o .
+. o o .
+. . . .
+</pre>
+<code>Ruche (6)</code>
+<pre>
+. o . .
+o . o .
+o . o .
+. o . .
+</pre>
+<code>Quignon (7)</code>
+<pre>
+. o o .
+o . . o
+. o . o
+. . o .
+</pre>
+<code>Mare (8)</code>
+<pre>
+. o o .
+o . . o
+o . . o
+. o o .
+</pre>
+<code>Baignoire (4)</code>
+<pre>
+. . . .
+. o . .
+o . o .
+. o . .
+</pre>
+<code>Bateau (5)</code>
+<pre>
+. . . .
+. o o .
+o . o .
+. o . .
+</pre>
+<code>Navire (6)</code>
+<pre>
+. . . .
+. o o .
+o . o .
+o o . .
+</pre>
+<code>Barge (6)</code>
+<pre>
+. . o .
+. o . o
+o . o .
+. o . .
+</pre>
+</div>
+
+<h4>Oscillateurs</h4>
+<p> La quasi-totalité des oscillateurs apparaissant dans la simulation sont de période 2, c'est-à-dire qu'ils alternent entre deux configurations. Il s'agit usuellement d'un des trois motifs ci-dessous...
+
+<div class="catalogue">
+<code>Clignotant (2)</code>
+<pre>
+. . .
+o o o
+. . .
+</pre>
+<code>Crapaud (2)</code>
+<pre>
+. . . .
+o o o .
+. o o o
+. . . .
+</pre>
+<code>Balise (2)</code>
+<pre>
+. . o o
+. . . o
+o . . .
+o o . .
+</pre>
+</div>
+
+<p> ...mais il arrive parfois qu'un oscillateur de période 3 (le <em>pulsar</em>) apparaisse par hasard et persiste parmi les cendres.
+
+<div class="catalogue">
+<code>Pulsar (1/3)</code>
+<pre>
+. . . . . . . . . . . . . . .
+. . . o o o . . . o o o . . .
+. . . . . . . . . . . . . . .
+. o . . . . o . o . . . . o .
+. o . . . . o . o . . . . o .
+. o . . . . o . o . . . . o .
+. . . o o o . . . o o o . . .
+. . . . . . . . . . . . . . .
+. . . o o o . . . o o o . . .
+. o . . . . o . o . . . . o .
+. o . . . . o . o . . . . o .
+. o . . . . o . o . . . . o .
+. . . . . . . . . . . . . . .
+. . . o o o . . . o o o . . .
+. . . . . . . . . . . . . . .
+</pre>
+<code>Pulsar (2/3)</code>
+<pre>
+. . . . o . . . . . o . . . .
+. . . . o . . . . . o . . . .
+. . . . o o . . . o o . . . .
+. . . . . . . . . . . . . . .
+o o o . . o o . o o . . o o o
+. . o . o . o . o . o . o . .
+. . . . o o . . . o o . . . .
+. . . . . . . . . . . . . . .
+. . . . o o . . . o o . . . .
+. . o . o . o . o . o . o . .
+o o o . . o o . o o . . o o o
+. . . . . . . . . . . . . . .
+. . . . o o . . . o o . . . .
+. . . . o . . . . . o . . . .
+. . . . o . . . . . o . . . .
+</pre>
+<code>Pulsar (3/3)</code>
+<pre>
+. . . . . . . . . . . . . . .
+. . . o o . . . . . o o . . .
+. . . . o o . . . o o . . . .
+. o . . o . o . o . o . . o .
+. o o o . o o . o o . o o o .
+. . o . o . o . o . o . o . .
+. . . o o o . . . o o o . . .
+. . . . . . . . . . . . . . .
+. . . o o o . . . o o o . . .
+. . o . o . o . o . o . o . .
+. o o o . o o . o o . o o o .
+. o . . o . o . o . o . . o .
+. . . . o o . . . o o . . . .
+. . . o o . . . . . o o . . .
+. . . . . . . . . . . . . . .
+</pre>
+</div>
+
+<p> Il existe un autre oscillateur de taille raisonnable dans le jeu de la vie dont la période est beaucoup plus longue, baptisé le <em>pentadécathlon</em>, car il ne retourne à sa configuration initiale qu'une fois toutes les 15 générations. Avec énormément de chance, peut-être pourrez-vous le voir apparaître...
+
+<h4>Vaisseaux</h4>
+<p> La quasi-totalité des vaisseaux apparaissant dans la simulation sont des planeurs, qui se déplacent en diagonale selon un cycle de quatre générations. Il en existe quatre variantes, en fonction de la direction de leur déplacement. Les quatre étapes du déplacement d'un planeur sont illustrées ci-dessous ; à la cinquième génération, le planeur retrouve sa forme initiale, mais en ayant progressé le long de sa diagonale.
+
+<div class="catalogue">
+<code>Planeur (1/4)</code>
+<pre>
+. . o .
+o . o .
+. o o .
+. . . .
+</pre>
+<code>Planeur (2/4)</code>
+<pre>
+. o . .
+. . o o
+. o o .
+. . . .
+</pre>
+<code>Planeur (3/4)</code>
+<pre>
+. . o .
+. . . o
+. o o o
+. . . .
+</pre>
+<code>Planeur (4/4)</code>
+<pre>
+. . . .
+. o . o
+. . o o
+. . o .
+</pre>
+<code>Planeur (1/4)</code>
+<pre>
+. . . .
+. . . o
+. o . o
+. . o o
+</pre>
+</div>
+
+<p> Compte tenu de la forme du terrain généré, tout vaisseau se déplaçant horizontalement tend à disparaître presque aussitôt. En revanche s'il est orienté verticalement, un vaisseau peut espérer survivre assez longtemps pour être observé alors qu'il traverse le no man's land. Mais de tels vaisseaux sont très rares comparés aux planeurs...
+
+<h4>Autres</h4>
+
+<p> En observant attentivement les cendres d'une simulation, vous trouverez certainement des configurations stables non listées ci-dessus ; le meilleur moyen de les identifier est de mettre à contribution le LifeWiki. Ce dernier comprend une <a href="https://www.conwaylife.com/wiki/List_of_common_still_lifes">liste des natures mortes les plus fréquentes</a> (des pages similaires existent pour les oscillateurs et vaisseaux), ainsi que des catégories regroupant les motifs par nombre de cellules, accessibles par exemple à cette URL : <code>https://www.conwaylife.com/wiki/Category:Patterns_with_6_cells</code> (remplacer le <code>6</code> par le nombre de cellules vivantes dans le motif recherché).
+
+<p> Enfin, vous avez peut-être observé que les natures mortes les plus fréquentes sont souvent arrangées en groupes de quatre, toujours de la même façon ; ce sont les <a href="https://www.conwaylife.com/wiki/Familiar_fours">quatuors familiers</a>. Ces configurations remarquables peut être nommées d'après leur élément constitutif : respectivement, un groupe naturel de quatre clignotants, ruches, blocs, navires ou quignons est baptisé <em>intersection</em>, <em>apiculture</em>, <em>blocus</em>, <em>flotte</em> ou <em>boulangerie</em>.
+
+</section>
