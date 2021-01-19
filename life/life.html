@@ -69,20 +69,20 @@ function get(name) { return document.getElementById(name); }
 
 <body class="isn_life">
 <div id="controles" style="padding:16px">
-	<button id="reinit" onclick="reinit();">Initialiser</button>
-	<b>Étape : <span id="cpt">0</span></b>
-	<button id="avancer" onclick="avancer()">Étape suivante</button>
-	<button id="pause" onclick="pause()">Démarrer</button>
-	<fieldset>
+	<button id="reinit" title="Redémarre la simulation avec un nouvel état initial." onclick="reinit();">Initialiser</button>
+	<b title="Nombre de générations écoulées.">Étape : <span id="cpt">0</span></b>
+	<button id="avancer" title="Avance la simulation à la génération suivante." onclick="avancer()">Étape suivante</button>
+	<button id="pause" title="Démarre/interrompt l'avance automatique des générations successives." onclick="pause()">Démarrer</button>
+	<fieldset title="Ajuste la vitesse maximale de la simulation. (La vitesse réelle dépend des performances de la machine.)">
 		<legend>Vitesse max.: <span id="freq">-/s</span></legend>
 		<input id="vitesse" type="range" min=0 max=8 oninput="choisir_vitesse(this.value)">
 	</fieldset>
-	<fieldset>
+	<fieldset title="Ajuste la taille des cellule dans la vue centrale.">
 		<legend>Grossissement : <span id="ppc">1 px</span></legend>
 		<input id="taille" type="range" min=0 max=8 oninput="choisir_taille(this.value)">
 	</fieldset>
-	<button id="manuel" onclick="ouvrir_manuel()">Plus d'infos</button>
-	<button id="clavier" onclick="afficher_raccourcis()">Raccourcis clavier</button>
+	<button id="manuel" title="Plus d'informations sur le fonctionnement de cette application." onclick="ouvrir_manuel()">Plus d'infos</button>
+	<button id="clavier" title="Affiche/masque les raccourcis clavier disponibles." onclick="afficher_raccourcis()">Raccourcis clavier</button>
 </div>
 
 <canvas id="vue" tabindex="0" width="50" height="1">Cette animation interactive requiert un élément <code>canvas</code>, qui ne fonctionne pas dans ce navigateur.</canvas>
