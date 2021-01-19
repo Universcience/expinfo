@@ -160,7 +160,8 @@ function repeindre () {
 	x0 = mod(x0, lsim);
 	y0 = mod(y0, hsim);
 
-	toile.clearRect(0, 0, lvue, hvue);
+	toile.fillStyle = "#000";
+	toile.fillRect(0, 0, lvue, hvue);
 
 	toile.fillStyle = "#0F0";
 	for (let x = 0 ; x < lvue/cote ; x++)
